@@ -1,3 +1,26 @@
+# Task Manager Pro
+
+Aplicación fullstack para gestión de tareas con filtros, persistencia y autenticación.
+
+## 🚀 Stack
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Prisma (próximamente)
+- PostgreSQL (próximamente)
+
+## ✨ Features
+- Crear / editar / eliminar tareas
+- Filtros por estado
+- Persistencia de datos
+- UI moderna
+
+## 🔗 Demo
+(enlace cuando lo subas)
+
+## 📸 Preview
+(screenshot)
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

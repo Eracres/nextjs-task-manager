@@ -30,7 +30,6 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isLoaded) return;
-
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks, isLoaded]);
 
@@ -48,15 +47,21 @@ export default function HomePage() {
   function handleToggleTask(id: string) {
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
-        task.id === id
-          ? { ...task, completed: !task.completed }
-          : task
+        task.id === id ? { ...task, completed: !task.completed } : task
       )
     );
   }
 
   function handleDeleteTask(id: string) {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+  }
+
+  function handleEditTask(id: string, newTitle: string) {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === id ? { ...task, title: newTitle } : task
+      )
+    );
   }
 
   function handleClearCompleted() {
@@ -85,13 +90,18 @@ export default function HomePage() {
     <main className="min-h-screen bg-black px-4 py-12 text-white">
       <div className="mx-auto max-w-3xl">
         <header className="mb-10">
-          <h1 className="text-4xl font-bold tracking-tight">
+          <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-sm text-purple-300">
+            Proyecto en desarrollo
+          </span>
+
+          <h1 className="mt-5 text-4xl font-bold tracking-tight">
             Task Manager Pro
           </h1>
 
-          <p className="mt-3 text-white/60">
-            Gestiona tus tareas con una interfaz clara, moderna y enfocada en
-            productividad.
+          <p className="mt-3 max-w-2xl text-white/60">
+            Aplicación de gestión de tareas con foco en productividad, organización
+            y una interfaz clara. En esta fase ya incluye CRUD, persistencia local,
+            filtros y edición de tareas.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/60">
@@ -121,6 +131,7 @@ export default function HomePage() {
             tasks={filteredTasks}
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}
+            onEditTask={handleEditTask}
           />
         </section>
       </div>

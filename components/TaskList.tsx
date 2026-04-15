@@ -7,17 +7,19 @@ type TaskListProps = {
   tasks: Task[];
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onEditTask: (id: string, newTitle: string) => void;
 };
 
 export default function TaskList({
   tasks,
   onToggleTask,
   onDeleteTask,
+  onEditTask,
 }: TaskListProps) {
   if (tasks.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-white/50">
-        No hay tareas todavía.
+        No hay tareas para mostrar en este filtro.
       </div>
     );
   }
@@ -30,6 +32,7 @@ export default function TaskList({
           task={task}
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
+          onEditTask={onEditTask}
         />
       ))}
     </ul>

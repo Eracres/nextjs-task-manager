@@ -6,14 +6,14 @@ import type { Task } from "@/types/task";
 type TaskItemProps = {
   task: Task;
   onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
+  onDeleteTaskRequest: (id: string) => void;
   onEditTask: (id: string, newTitle: string) => void;
 };
 
 export default function TaskItem({
   task,
   onToggleTask,
-  onDeleteTask,
+  onDeleteTaskRequest,
   onEditTask,
 }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -21,7 +21,6 @@ export default function TaskItem({
 
   function handleSave() {
     const trimmedTitle = editedTitle.trim();
-
     if (!trimmedTitle) return;
 
     onEditTask(task.id, trimmedTitle);
@@ -34,7 +33,14 @@ export default function TaskItem({
   }
 
   return (
-    <li className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-purple-500/20">
+    <li
+      className={[
+        "rounded-2xl border p-4 transition duration-300",
+        task.completed
+          ? "border-white/5 bg-white/[0.03]"
+          : "border-white/10 bg-white/5 hover:border-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.12)]",
+      ].join(" ")}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <input
@@ -57,8 +63,8 @@ export default function TaskItem({
               <p
                 className={
                   task.completed
-                    ? "break-words text-white/40 line-through"
-                    : "break-words text-white/80"
+                    ? "break-words text-white/35 line-through"
+                    : "break-words text-white/85"
                 }
               >
                 {task.title}
@@ -102,7 +108,7 @@ export default function TaskItem({
 
               <button
                 type="button"
-                onClick={() => onDeleteTask(task.id)}
+                onClick={() => onDeleteTaskRequest(task.id)}
                 className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/10"
               >
                 Eliminar

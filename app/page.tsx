@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import TaskForm from "@/components/TaskForm";
 import TaskList from "@/components/TaskList";
 import TaskFilters, { type TaskFilter } from "@/components/TaskFilters";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import Toast from "@/components/Toast";
+import AnimatedCounter from "@/components/AnimatedCounter";
 import type { Task } from "@/types/task";
 
 const STORAGE_KEY = "task-manager-pro-tasks";
@@ -13,7 +14,7 @@ export default function HomePage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [isLoaded, setIsLoaded] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
     const storedTasks = localStorage.getItem(STORAGE_KEY);
@@ -35,6 +36,20 @@ export default function HomePage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks, isLoaded]);
 
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timeout = setTimeout(() => {
+      setToastMessage("");
+    }, 2200);
+
+    return () => clearTimeout(timeout);
+  }, [toastMessage]);
+
+  function showToast(message: string) {
+    setToastMessage(message);
+  }
+
   function handleAddTask(title: string) {
     const newTask: Task = {
       id: crypto.randomUUID(),
@@ -44,6 +59,7 @@ export default function HomePage() {
     };
 
     setTasks((prevTasks) => [newTask, ...prevTasks]);
+    showToast("Tarea creada correctamente");
   }
 
   function handleToggleTask(id: string) {
@@ -54,19 +70,9 @@ export default function HomePage() {
     );
   }
 
-  function handleRequestDeleteTask(id: string) {
-    setTaskToDelete(id);
-  }
-
-  function handleConfirmDeleteTask() {
-    if (!taskToDelete) return;
-
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskToDelete));
-    setTaskToDelete(null);
-  }
-
-  function handleCancelDeleteTask() {
-    setTaskToDelete(null);
+  function handleDeleteTask(id: string) {
+    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+    showToast("Tarea eliminada");
   }
 
   function handleEditTask(id: string, newTitle: string) {
@@ -75,10 +81,13 @@ export default function HomePage() {
         task.id === id ? { ...task, title: newTitle } : task
       )
     );
+
+    showToast("Tarea actualizada");
   }
 
   function handleClearCompleted() {
     setTasks((prevTasks) => prevTasks.filter((task) => !task.completed));
+    showToast("Tareas completadas eliminadas");
   }
 
   const filteredTasks = useMemo(() => {
@@ -120,13 +129,13 @@ export default function HomePage() {
 
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/60">
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Total: {tasks.length}
+                Total: <AnimatedCounter value={tasks.length} />
               </span>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Completadas: {completedTasks}
+                Completadas: <AnimatedCounter value={completedTasks} />
               </span>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Pendientes: {pendingTasks}
+                Pendientes: <AnimatedCounter value={pendingTasks} />
               </span>
             </div>
           </header>
@@ -144,23 +153,14 @@ export default function HomePage() {
             <TaskList
               tasks={filteredTasks}
               onToggleTask={handleToggleTask}
-              onDeleteTaskRequest={handleRequestDeleteTask}
+              onDeleteTask={handleDeleteTask}
               onEditTask={handleEditTask}
             />
           </section>
         </div>
       </main>
 
-      {taskToDelete ? (
-        <ConfirmDialog
-          title="Eliminar tarea"
-          description="Esta acción eliminará la tarea de forma permanente. ¿Seguro que quieres continuar?"
-          confirmText="Eliminar"
-          cancelText="Cancelar"
-          onConfirm={handleConfirmDeleteTask}
-          onCancel={handleCancelDeleteTask}
-        />
-      ) : null}
+      <Toast message={toastMessage} isVisible={Boolean(toastMessage)} />
     </>
   );
 }

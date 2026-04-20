@@ -1,19 +1,20 @@
 "use client";
 
+import { AnimatePresence } from "framer-motion";
 import TaskItem from "@/components/TaskItem";
 import type { Task } from "@/types/task";
 
 type TaskListProps = {
   tasks: Task[];
   onToggleTask: (id: string) => void;
-  onDeleteTaskRequest: (id: string) => void;
+  onDeleteTask: (id: string) => void;
   onEditTask: (id: string, newTitle: string) => void;
 };
 
 export default function TaskList({
   tasks,
   onToggleTask,
-  onDeleteTaskRequest,
+  onDeleteTask,
   onEditTask,
 }: TaskListProps) {
   if (tasks.length === 0) {
@@ -30,16 +31,18 @@ export default function TaskList({
   }
 
   return (
-    <ul className="space-y-4">
-      {tasks.map((task) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          onToggleTask={onToggleTask}
-          onDeleteTaskRequest={onDeleteTaskRequest}
-          onEditTask={onEditTask}
-        />
-      ))}
-    </ul>
+    <AnimatePresence mode="popLayout">
+      <ul className="space-y-4">
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            onToggleTask={onToggleTask}
+            onDeleteTask={onDeleteTask}
+            onEditTask={onEditTask}
+          />
+        ))}
+      </ul>
+    </AnimatePresence>
   );
 }

@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import type { Task } from "@/types/task";
 
 type TaskItemProps = {
   task: Task;
   onToggleTask: (id: string) => void;
-  onDeleteTaskRequest: (id: string) => void;
+  onDeleteTask: (id: string) => void;
   onEditTask: (id: string, newTitle: string) => void;
 };
 
 export default function TaskItem({
   task,
   onToggleTask,
-  onDeleteTaskRequest,
+  onDeleteTask,
   onEditTask,
 }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -32,8 +33,23 @@ export default function TaskItem({
     setIsEditing(false);
   }
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      handleSave();
+    }
+
+    if (event.key === "Escape") {
+      handleCancel();
+    }
+  }
+
   return (
-    <li
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -16 }}
+      transition={{ duration: 0.2 }}
       className={[
         "rounded-2xl border p-4 transition duration-300",
         task.completed
@@ -56,6 +72,7 @@ export default function TaskItem({
                 type="text"
                 value={editedTitle}
                 onChange={(event) => setEditedTitle(event.target.value)}
+                onKeyDown={handleKeyDown}
                 className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white outline-none transition focus:border-purple-500"
                 autoFocus
               />
@@ -108,7 +125,7 @@ export default function TaskItem({
 
               <button
                 type="button"
-                onClick={() => onDeleteTaskRequest(task.id)}
+                onClick={() => onDeleteTask(task.id)}
                 className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/10"
               >
                 Eliminar
@@ -117,6 +134,6 @@ export default function TaskItem({
           )}
         </div>
       </div>
-    </li>
+    </motion.li>
   );
 }

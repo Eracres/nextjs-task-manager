@@ -7,42 +7,37 @@ import TaskFilters, { type TaskFilter } from "@/components/TaskFilters";
 import Toast from "@/components/Toast";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import type { Task } from "@/types/task";
+import { supabase } from "@/lib/supabase";
 
-const STORAGE_KEY = "task-manager-pro-tasks";
+type TaskRow = {
+  id: string;
+  title: string;
+  completed: boolean;
+  created_at: string;
+};
+
+function mapTask(row: TaskRow): Task {
+  return {
+    id: row.id,
+    title: row.title,
+    completed: row.completed,
+    createdAt: row.created_at,
+  };
+}
 
 export default function HomePage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>("all");
-  const [isLoaded, setIsLoaded] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedTasks = localStorage.getItem(STORAGE_KEY);
-
-    if (storedTasks) {
-      try {
-        const parsedTasks: Task[] = JSON.parse(storedTasks);
-        setTasks(parsedTasks);
-      } catch (error) {
-        console.error("Error reading tasks from localStorage:", error);
-      }
-    }
-
-    setIsLoaded(true);
+    fetchTasks();
   }, []);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  }, [tasks, isLoaded]);
-
-  useEffect(() => {
     if (!toastMessage) return;
-
-    const timeout = setTimeout(() => {
-      setToastMessage("");
-    }, 2200);
-
+    const timeout = setTimeout(() => setToastMessage(""), 2200);
     return () => clearTimeout(timeout);
   }, [toastMessage]);
 
@@ -50,44 +45,120 @@ export default function HomePage() {
     setToastMessage(message);
   }
 
-  function handleAddTask(title: string) {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    };
+  async function fetchTasks() {
+    try {
+      setIsLoading(true);
 
-    setTasks((prevTasks) => [newTask, ...prevTasks]);
-    showToast("Tarea creada correctamente");
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      setTasks((data ?? []).map(mapTask));
+    } catch (error) {
+      console.error(error);
+      showToast("Error al cargar tareas");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleToggleTask(id: string) {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  async function handleAddTask(title: string) {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert([{ title }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTasks((prev) => [mapTask(data), ...prev]);
+      showToast("Tarea creada correctamente");
+    } catch (error) {
+      console.error(error);
+      showToast("No se pudo crear la tarea");
+    }
   }
 
-  function handleDeleteTask(id: string) {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
-    showToast("Tarea eliminada");
+  async function handleToggleTask(id: string) {
+    const currentTask = tasks.find((task) => task.id === id);
+    if (!currentTask) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ completed: !currentTask.completed })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTasks((prev) =>
+        prev.map((task) => (task.id === id ? mapTask(data) : task))
+      );
+    } catch (error) {
+      console.error(error);
+      showToast("No se pudo actualizar la tarea");
+    }
   }
 
-  function handleEditTask(id: string, newTitle: string) {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id ? { ...task, title: newTitle } : task
-      )
-    );
+  async function handleDeleteTask(id: string) {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", id);
 
-    showToast("Tarea actualizada");
+      if (error) throw error;
+
+      setTasks((prev) => prev.filter((task) => task.id !== id));
+      showToast("Tarea eliminada");
+    } catch (error) {
+      console.error(error);
+      showToast("No se pudo eliminar la tarea");
+    }
   }
 
-  function handleClearCompleted() {
-    setTasks((prevTasks) => prevTasks.filter((task) => !task.completed));
-    showToast("Tareas completadas eliminadas");
+  async function handleEditTask(id: string, newTitle: string) {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ title: newTitle })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTasks((prev) =>
+        prev.map((task) => (task.id === id ? mapTask(data) : task))
+      );
+      showToast("Tarea actualizada");
+    } catch (error) {
+      console.error(error);
+      showToast("No se pudo actualizar la tarea");
+    }
+  }
+
+  async function handleClearCompleted() {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("completed", true);
+
+      if (error) throw error;
+
+      setTasks((prev) => prev.filter((task) => !task.completed));
+      showToast("Tareas completadas eliminadas");
+    } catch (error) {
+      console.error(error);
+      showToast("No se pudieron eliminar las completadas");
+    }
   }
 
   const filteredTasks = useMemo(() => {
@@ -123,8 +194,8 @@ export default function HomePage() {
 
             <p className="mt-3 max-w-2xl text-white/60">
               Aplicación de gestión de tareas con foco en productividad,
-              organización y una interfaz clara. Incluye CRUD, persistencia local,
-              filtros y edición de tareas.
+              organización y una interfaz clara. Ahora usa una base de datos real
+              con Supabase.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/60">
@@ -150,12 +221,18 @@ export default function HomePage() {
               hasCompletedTasks={completedTasks > 0}
             />
 
-            <TaskList
-              tasks={filteredTasks}
-              onToggleTask={handleToggleTask}
-              onDeleteTask={handleDeleteTask}
-              onEditTask={handleEditTask}
-            />
+            {isLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-white/50">
+                Cargando tareas...
+              </div>
+            ) : (
+              <TaskList
+                tasks={filteredTasks}
+                onToggleTask={handleToggleTask}
+                onDeleteTask={handleDeleteTask}
+                onEditTask={handleEditTask}
+              />
+            )}
           </section>
         </div>
       </main>

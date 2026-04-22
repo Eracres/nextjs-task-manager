@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { arrayMove } from "@dnd-kit/sortable";
+import AppSidebar from "@/components/AppSidebar";
+import MetricsDashboard from "@/components/MetricsDashboard";
 import TaskForm from "@/components/TaskForm";
-import TaskList from "@/components/TaskList";
 import TaskFilters, { type TaskFilter } from "@/components/TaskFilters";
+import TaskList from "@/components/TaskList";
 import Toast from "@/components/Toast";
-import AnimatedCounter from "@/components/AnimatedCounter";
 import type { Task } from "@/types/task";
 
 type TaskRow = {
@@ -14,6 +16,7 @@ type TaskRow = {
   completed: boolean;
   created_at?: string;
   createdAt?: string;
+  position?: number;
 };
 
 function mapTask(row: TaskRow): Task {
@@ -22,14 +25,31 @@ function mapTask(row: TaskRow): Task {
     title: row.title,
     completed: row.completed,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
+    position: row.position ?? 0,
   };
 }
 
-export default function HomePage() {
+export default function TasksClientPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("task-manager-theme") as
+      | "dark"
+      | "light"
+      | null;
+
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("task-manager-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     fetchTasks();
@@ -37,9 +57,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!toastMessage) return;
+
     const timeout = setTimeout(() => setToastMessage(""), 2200);
     return () => clearTimeout(timeout);
   }, [toastMessage]);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
 
   function showToast(message: string) {
     setToastMessage(message);
@@ -79,7 +104,7 @@ export default function HomePage() {
       }
 
       const data: TaskRow = await response.json();
-      setTasks((prev) => [mapTask(data), ...prev]);
+      setTasks((prev) => [...prev, mapTask(data)]);
       showToast("Tarea creada correctamente");
     } catch (error) {
       console.log("ADD TASK ERROR:", error);
@@ -104,6 +129,7 @@ export default function HomePage() {
       }
 
       const data: TaskRow = await response.json();
+
       setTasks((prev) =>
         prev.map((task) => (task.id === id ? mapTask(data) : task))
       );
@@ -146,9 +172,11 @@ export default function HomePage() {
       }
 
       const data: TaskRow = await response.json();
+
       setTasks((prev) =>
         prev.map((task) => (task.id === id ? mapTask(data) : task))
       );
+
       showToast("Tarea actualizada");
     } catch (error) {
       console.log("EDIT TASK ERROR:", error);
@@ -175,6 +203,43 @@ export default function HomePage() {
     }
   }
 
+  async function handleReorderTasks(activeId: string, overId: string) {
+    const oldIndex = tasks.findIndex((task) => task.id === activeId);
+    const newIndex = tasks.findIndex((task) => task.id === overId);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(tasks, oldIndex, newIndex).map((task, index) => ({
+      ...task,
+      position: index,
+    }));
+
+    setTasks(reordered);
+
+    try {
+      const response = await fetch("/api/tasks/reorder", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          updates: reordered.map((task) => ({
+            id: task.id,
+            position: task.position ?? 0,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar el nuevo orden");
+      }
+    } catch (error) {
+      console.log("REORDER TASKS ERROR:", error);
+      showToast("No se pudo guardar el nuevo orden");
+      fetchTasks();
+    }
+  }
+
   const filteredTasks = useMemo(() => {
     switch (filter) {
       case "pending":
@@ -192,54 +257,81 @@ export default function HomePage() {
   );
 
   const pendingTasks = tasks.length - completedTasks;
+  const isDark = theme === "dark";
 
   return (
     <>
-      <main className="min-h-screen bg-black px-4 pt-16 pb-12 text-white">
-        <div className="mx-auto max-w-3xl">
-          <header className="mb-10">
-            <h1 className="mt-5 text-4xl font-bold tracking-tight">
-              Task Manager Pro
-            </h1>
+      <div
+        className={
+          isDark
+            ? "min-h-screen bg-black text-white"
+            : "min-h-screen bg-zinc-100 text-zinc-900"
+        }
+      >
+        <div className="grid min-h-screen md:grid-cols-[260px_1fr]">
+          <AppSidebar theme={theme} onToggleTheme={toggleTheme} />
 
-            <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/60">
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Total: <AnimatedCounter value={tasks.length} />
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Completadas: <AnimatedCounter value={completedTasks} />
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Pendientes: <AnimatedCounter value={pendingTasks} />
-              </span>
-            </div>
-          </header>
+          <main className="px-4 py-8 md:px-8">
+            <div className="mx-auto max-w-5xl space-y-8">
+              <section>
+                <h1 className="text-4xl font-bold tracking-tight">
+                  Task Manager Pro
+                </h1>
 
-          <section className="space-y-6">
-            <TaskForm onAddTask={handleAddTask} />
+                <p
+                  className={
+                    isDark
+                      ? "mt-3 text-sm text-white/60"
+                      : "mt-3 text-sm text-zinc-600"
+                  }
+                >
+                  Gestiona tus tareas, analiza tu progreso y trabaja con una interfaz más profesional.
+                </p>
+              </section>
 
-            <TaskFilters
-              currentFilter={filter}
-              onChangeFilter={setFilter}
-              onClearCompleted={handleClearCompleted}
-              hasCompletedTasks={completedTasks > 0}
-            />
-
-            {isLoading ? (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-white/50">
-                Cargando tareas...
-              </div>
-            ) : (
-              <TaskList
-                tasks={filteredTasks}
-                onToggleTask={handleToggleTask}
-                onDeleteTask={handleDeleteTask}
-                onEditTask={handleEditTask}
+              <MetricsDashboard
+                total={tasks.length}
+                completed={completedTasks}
+                pending={pendingTasks}
+                theme={theme}
               />
-            )}
-          </section>
+
+              <section className="space-y-6">
+                <TaskForm onAddTask={handleAddTask} theme={theme} />
+
+                <TaskFilters
+                  currentFilter={filter}
+                  onChangeFilter={setFilter}
+                  onClearCompleted={handleClearCompleted}
+                  hasCompletedTasks={completedTasks > 0}
+                  theme={theme}
+                />
+
+                {isLoading ? (
+                  <div
+                    className={
+                      isDark
+                        ? "rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-white/50"
+                        : "rounded-2xl border border-zinc-300 bg-white p-10 text-center text-zinc-500 shadow-sm"
+                    }
+                  >
+                    Cargando tareas...
+                  </div>
+                ) : (
+                  <TaskList
+                    tasks={filteredTasks}
+                    onToggleTask={handleToggleTask}
+                    onDeleteTask={handleDeleteTask}
+                    onEditTask={handleEditTask}
+                    onReorderTasks={handleReorderTasks}
+                    theme={theme}
+                  />
+                )}
+              </section>
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
 
       <Toast message={toastMessage} isVisible={Boolean(toastMessage)} />
     </>

@@ -9,6 +9,7 @@ type TaskItemProps = {
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask: (id: string, newTitle: string) => void;
+  theme: "dark" | "light";
 };
 
 export default function TaskItem({
@@ -16,9 +17,11 @@ export default function TaskItem({
   onToggleTask,
   onDeleteTask,
   onEditTask,
+  theme,
 }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
+  const isDark = theme === "dark";
 
   function handleSave() {
     const trimmedTitle = editedTitle.trim();
@@ -34,13 +37,8 @@ export default function TaskItem({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      handleSave();
-    }
-
-    if (event.key === "Escape") {
-      handleCancel();
-    }
+    if (event.key === "Enter") handleSave();
+    if (event.key === "Escape") handleCancel();
   }
 
   return (
@@ -50,12 +48,21 @@ export default function TaskItem({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -16 }}
       transition={{ duration: 0.2 }}
-      className={[
-        "rounded-2xl border p-4 transition duration-300",
-        task.completed
-          ? "border-white/5 bg-white/[0.03]"
-          : "border-white/10 bg-white/5 hover:border-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.12)]",
-      ].join(" ")}
+      className={
+        isDark
+          ? [
+              "rounded-2xl border p-4 transition duration-300",
+              task.completed
+                ? "border-white/5 bg-white/[0.03]"
+                : "border-white/10 bg-white/5 hover:border-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.12)]",
+            ].join(" ")
+          : [
+              "rounded-2xl border p-4 transition duration-300",
+              task.completed
+                ? "border-zinc-200 bg-zinc-50"
+                : "border-zinc-300 bg-white shadow-sm hover:border-purple-300",
+            ].join(" ")
+      }
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
@@ -73,22 +80,36 @@ export default function TaskItem({
                 value={editedTitle}
                 onChange={(event) => setEditedTitle(event.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white outline-none transition focus:border-purple-500"
+                className={
+                  isDark
+                    ? "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white outline-none transition focus:border-purple-500"
+                    : "w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-zinc-900 outline-none transition focus:border-purple-500"
+                }
                 autoFocus
               />
             ) : (
               <p
                 className={
                   task.completed
-                    ? "break-words text-white/35 line-through"
-                    : "break-words text-white/85"
+                    ? isDark
+                      ? "break-words text-white/35 line-through"
+                      : "break-words text-zinc-400 line-through"
+                    : isDark
+                    ? "break-words text-white/85"
+                    : "break-words text-zinc-900"
                 }
               >
                 {task.title}
               </p>
             )}
 
-            <p className="mt-2 text-xs text-white/40">
+            <p
+              className={
+                isDark
+                  ? "mt-2 text-xs text-white/40"
+                  : "mt-2 text-xs text-zinc-500"
+              }
+            >
               Creada: {new Date(task.createdAt).toLocaleString()}
             </p>
           </div>
@@ -108,7 +129,11 @@ export default function TaskItem({
               <button
                 type="button"
                 onClick={handleCancel}
-                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                className={
+                  isDark
+                    ? "rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                    : "rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100"
+                }
               >
                 Cancelar
               </button>
@@ -118,7 +143,11 @@ export default function TaskItem({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                className={
+                  isDark
+                    ? "rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                    : "rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100"
+                }
               >
                 Editar
               </button>
@@ -126,7 +155,7 @@ export default function TaskItem({
               <button
                 type="button"
                 onClick={() => onDeleteTask(task.id)}
-                className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/10"
+                className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-400 transition hover:bg-red-500/10"
               >
                 Eliminar
               </button>

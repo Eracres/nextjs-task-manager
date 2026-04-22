@@ -15,7 +15,7 @@ export async function GET() {
     .from("tasks")
     .select("*")
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("position", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -44,9 +44,25 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: lastTask } = await supabase
+    .from("tasks")
+    .select("position")
+    .eq("user_id", user.id)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextPosition = lastTask ? lastTask.position + 1 : 0;
+
   const { data, error } = await supabase
     .from("tasks")
-    .insert([{ title, user_id: user.id }])
+    .insert([
+      {
+        title,
+        user_id: user.id,
+        position: nextPosition,
+      },
+    ])
     .select()
     .single();
 

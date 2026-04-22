@@ -7,13 +7,13 @@ import TaskFilters, { type TaskFilter } from "@/components/TaskFilters";
 import Toast from "@/components/Toast";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import type { Task } from "@/types/task";
-import { supabase } from "@/lib/supabase";
 
 type TaskRow = {
   id: string;
   title: string;
   completed: boolean;
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
 };
 
 function mapTask(row: TaskRow): Task {
@@ -21,7 +21,7 @@ function mapTask(row: TaskRow): Task {
     id: row.id,
     title: row.title,
     completed: row.completed,
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   };
 }
 
@@ -48,17 +48,17 @@ export default function HomePage() {
   async function fetchTasks() {
     try {
       setIsLoading(true);
+      const response = await fetch("/api/tasks", { cache: "no-store" });
 
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al cargar tareas");
+      }
 
-      if (error) throw error;
-
-      setTasks((data ?? []).map(mapTask));
+      const data: TaskRow[] = await response.json();
+      setTasks(data.map(mapTask));
     } catch (error) {
-      console.error(error);
+      console.log("FETCH TASKS ERROR:", error);
       showToast("Error al cargar tareas");
     } finally {
       setIsLoading(false);
@@ -67,18 +67,22 @@ export default function HomePage() {
 
   async function handleAddTask(title: string) {
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert([{ title }])
-        .select()
-        .single();
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al crear");
+      }
 
+      const data: TaskRow = await response.json();
       setTasks((prev) => [mapTask(data), ...prev]);
       showToast("Tarea creada correctamente");
     } catch (error) {
-      console.error(error);
+      console.log("ADD TASK ERROR:", error);
       showToast("No se pudo crear la tarea");
     }
   }
@@ -88,75 +92,85 @@ export default function HomePage() {
     if (!currentTask) return;
 
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .update({ completed: !currentTask.completed })
-        .eq("id", id)
-        .select()
-        .single();
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: !currentTask.completed }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al actualizar");
+      }
 
+      const data: TaskRow = await response.json();
       setTasks((prev) =>
         prev.map((task) => (task.id === id ? mapTask(data) : task))
       );
     } catch (error) {
-      console.error(error);
+      console.log("TOGGLE TASK ERROR:", error);
       showToast("No se pudo actualizar la tarea");
     }
   }
 
   async function handleDeleteTask(id: string) {
     try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", id);
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al borrar");
+      }
 
       setTasks((prev) => prev.filter((task) => task.id !== id));
       showToast("Tarea eliminada");
     } catch (error) {
-      console.error(error);
+      console.log("DELETE TASK ERROR:", error);
       showToast("No se pudo eliminar la tarea");
     }
   }
 
   async function handleEditTask(id: string, newTitle: string) {
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .update({ title: newTitle })
-        .eq("id", id)
-        .select()
-        .single();
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al editar");
+      }
 
+      const data: TaskRow = await response.json();
       setTasks((prev) =>
         prev.map((task) => (task.id === id ? mapTask(data) : task))
       );
       showToast("Tarea actualizada");
     } catch (error) {
-      console.error(error);
+      console.log("EDIT TASK ERROR:", error);
       showToast("No se pudo actualizar la tarea");
     }
   }
 
   async function handleClearCompleted() {
     try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("completed", true);
+      const response = await fetch("/api/tasks/completed", {
+        method: "DELETE",
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al limpiar");
+      }
 
       setTasks((prev) => prev.filter((task) => !task.completed));
       showToast("Tareas completadas eliminadas");
     } catch (error) {
-      console.error(error);
+      console.log("CLEAR COMPLETED ERROR:", error);
       showToast("No se pudieron eliminar las completadas");
     }
   }
@@ -184,19 +198,9 @@ export default function HomePage() {
       <main className="min-h-screen bg-black px-4 py-12 text-white">
         <div className="mx-auto max-w-3xl">
           <header className="mb-10">
-            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-sm text-purple-300">
-              Proyecto en desarrollo
-            </span>
-
             <h1 className="mt-5 text-4xl font-bold tracking-tight">
               Task Manager Pro
             </h1>
-
-            <p className="mt-3 max-w-2xl text-white/60">
-              Aplicación de gestión de tareas con foco en productividad,
-              organización y una interfaz clara. Ahora usa una base de datos real
-              con Supabase.
-            </p>
 
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/60">
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
